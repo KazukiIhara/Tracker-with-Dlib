@@ -74,9 +74,10 @@ int main()
 		}
 
 		// ランドマーク付きの画像を出力
-		
+
 		win.set_image(img);
 	}
 
+	return 0;
 }
 
