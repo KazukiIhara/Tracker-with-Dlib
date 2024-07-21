@@ -96,9 +96,10 @@ int main() {
 			cv::GaussianBlur(left_eye_img, left_eye_img, cv::Size(7, 7), 0);
 			cv::GaussianBlur(right_eye_img, right_eye_img, cv::Size(7, 7), 0);
 
-			uint32_t thresholdValue = 8;
+
 
 			// “ñ’l‰»
+			uint32_t thresholdValue = 8; // ‚µ‚«‚¢’l(¬‚³‚­‚·‚é‚Ù‚Ç‚æ‚è”Z‚¢•‚Ì‚İ‚ğŒŸo‚·‚é)
 			cv::Mat left_eye_img_binary, right_eye_img_binary;
 			cv::threshold(left_eye_img, left_eye_img_binary, thresholdValue, 255, cv::THRESH_BINARY_INV);
 			cv::threshold(right_eye_img, right_eye_img_binary, thresholdValue, 255, cv::THRESH_BINARY_INV);
