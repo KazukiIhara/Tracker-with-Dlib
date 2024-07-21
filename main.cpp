@@ -12,6 +12,7 @@
 using namespace dlib;
 using namespace std;
 
+
 int main() {
 	// カメラを開く。引数0番が初期設定のカメラ
 	cv::VideoCapture cap(0);
@@ -32,7 +33,7 @@ int main() {
 	deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model;
 	cv::Mat temp;
 
-	// Haar Cascadeの読み込み
+	// 目を検出するためのHaar Cascadeを読み込みます。
 	cv::CascadeClassifier eye_cascade;
 	if (!eye_cascade.load("haarcascade_eye.xml")) {
 		std::cout << "Error loading haarcascade_eye.xml" << std::endl;
@@ -72,65 +73,81 @@ int main() {
 
 
 			// 目の部分を切り取る
-			int margin = 15; // 追加するマージン（ピクセル単位）
-			cv::Rect left_eye(std::max(0, static_cast<int>(shapes[i].part(42).x()) - margin), std::max(0, static_cast<int>(shapes[i].part(43).y()) - margin), std::min(temp.cols, static_cast<int>(shapes[i].part(45).x()) + margin) - std::max(0, static_cast<int>(shapes[i].part(42).x()) - margin), std::min(temp.rows, static_cast<int>(shapes[i].part(47).y()) + margin) - std::max(0, static_cast<int>(shapes[i].part(43).y()) - margin));
-			cv::Rect right_eye(std::max(0, static_cast<int>(shapes[i].part(36).x()) - margin), std::max(0, static_cast<int>(shapes[i].part(37).y()) - margin), std::min(temp.cols, static_cast<int>(shapes[i].part(39).x()) + margin) - std::max(0, static_cast<int>(shapes[i].part(36).x()) - margin), std::min(temp.rows, static_cast<int>(shapes[i].part(41).y()) + margin) - std::max(0, static_cast<int>(shapes[i].part(37).y()) - margin));			cv::Mat left_eye_img = temp(left_eye);
+			int margin = 5; // 追加するマージン（ピクセル単位）
+			cv::Rect left_eye(std::max(0, static_cast<int>(shapes[i].part(42).x())), std::max(0, static_cast<int>(shapes[i].part(43).y()) - margin), std::min(temp.cols, static_cast<int>(shapes[i].part(45).x())) - std::max(0, static_cast<int>(shapes[i].part(42).x())), std::min(temp.rows, static_cast<int>(shapes[i].part(47).y()) + margin) - std::max(0, static_cast<int>(shapes[i].part(43).y()) - margin));
+			cv::Rect right_eye(std::max(0, static_cast<int>(shapes[i].part(36).x())), std::max(0, static_cast<int>(shapes[i].part(38).y()) - margin), std::min(temp.cols, static_cast<int>(shapes[i].part(39).x())) - std::max(0, static_cast<int>(shapes[i].part(36).x())), std::min(temp.rows, static_cast<int>(shapes[i].part(40).y()) + margin) - std::max(0, static_cast<int>(shapes[i].part(38).y()) - margin));
+
+			cv::Mat left_eye_img = temp(left_eye);
 			cv::Mat right_eye_img = temp(right_eye);
 
-			// 画像をリサイズ
-			cv::resize(left_eye_img, left_eye_img, cv::Size(300, 300));
-			cv::resize(right_eye_img, right_eye_img, cv::Size(300, 300));
+			// アスペクト比を保持したまま画像をリサイズ
+			int desired_size = 300; // 望むサイズ
+			double aspect_ratio = static_cast<double>(left_eye_img.cols) / static_cast<double>(left_eye_img.rows);
+			int new_width = desired_size;
+			int new_height = static_cast<int>(desired_size / aspect_ratio);
+			cv::resize(left_eye_img, left_eye_img, cv::Size(new_width, new_height));
+
+			aspect_ratio = static_cast<double>(right_eye_img.cols) / static_cast<double>(right_eye_img.rows);
+			new_width = desired_size;
+			new_height = static_cast<int>(desired_size / aspect_ratio);
+			cv::resize(right_eye_img, right_eye_img, cv::Size(new_width, new_height));
+
+			// 平滑化
+			cv::GaussianBlur(left_eye_img, left_eye_img, cv::Size(7, 7), 0);
+			cv::GaussianBlur(right_eye_img, right_eye_img, cv::Size(7, 7), 0);
+
+			uint32_t thresholdValue = 8;
+
+			// 二値化
+			cv::Mat left_eye_img_binary, right_eye_img_binary;
+			cv::threshold(left_eye_img, left_eye_img_binary, thresholdValue, 255, cv::THRESH_BINARY_INV);
+			cv::threshold(right_eye_img, right_eye_img_binary, thresholdValue, 255, cv::THRESH_BINARY_INV);
 
 			// グレースケールに変換
-			cv::Mat gray_left_eye, gray_right_eye;
-			cv::cvtColor(left_eye_img, gray_left_eye, cv::COLOR_BGR2GRAY);
-			cv::cvtColor(right_eye_img, gray_right_eye, cv::COLOR_BGR2GRAY);
+			cv::Mat left_eye_img_gray, right_eye_img_gray;
+			cv::cvtColor(left_eye_img_binary, left_eye_img_gray, cv::COLOR_BGR2GRAY);
+			cv::cvtColor(right_eye_img_binary, right_eye_img_gray, cv::COLOR_BGR2GRAY);
 
-			// ガウシアンブラーを適用
-			cv::GaussianBlur(gray_left_eye, gray_left_eye, cv::Size(7, 7), 0);
-			cv::GaussianBlur(gray_right_eye, gray_right_eye, cv::Size(7, 7), 0);
-
-			// Otsuの二値化
-			cv::Mat th_left_eye, th_right_eye;
-			double thresh_left_eye = cv::threshold(gray_left_eye, th_left_eye, 0, 255, cv::THRESH_BINARY_INV | cv::THRESH_OTSU);
-			double thresh_right_eye = cv::threshold(gray_right_eye, th_right_eye, 0, 255, cv::THRESH_BINARY_INV | cv::THRESH_OTSU);
-
-			// 輪郭を検出
-			std::vector<std::vector<cv::Point>> contours_left_eye, contours_right_eye;
-			cv::findContours(th_left_eye, contours_left_eye, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
-			cv::findContours(th_right_eye, contours_right_eye, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
+			// 輪郭の抽出
+			std::vector<std::vector<cv::Point>> contours_left, contours_right;
+			cv::findContours(left_eye_img_gray, contours_left, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+			cv::findContours(right_eye_img_gray, contours_right, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
 			// 最大の輪郭を見つける
-			std::vector<cv::Point> cnt_left_eye = contours_left_eye[0];
-			for (const auto& c : contours_left_eye) {
-				if (cnt_left_eye.size() < c.size()) {
-					cnt_left_eye = c;
-				}
-			}
-			std::vector<cv::Point> cnt_right_eye = contours_right_eye[0];
-			for (const auto& c : contours_right_eye) {
-				if (cnt_right_eye.size() < c.size()) {
-					cnt_right_eye = c;
+			double maxArea_left = 0, maxArea_right = 0;
+			std::vector<cv::Point> maxContour_left, maxContour_right;
+
+			for (size_t i = 0; i < contours_left.size(); i++) {
+				double area = cv::contourArea(contours_left[i]);
+				if (area > maxArea_left) {
+					maxArea_left = area;
+					maxContour_left = contours_left[i];
 				}
 			}
 
-			// 楕円フィッティング
-			if (cnt_left_eye.size() > 5) {
-				cv::RotatedRect ellipse = cv::fitEllipse(cnt_left_eye);
-				cv::Point2f center = ellipse.center;
-				// 重心に円を描画
-				cv::circle(left_eye_img, center, 5, cv::Scalar(0, 255, 255), -1);
+			for (size_t i = 0; i < contours_right.size(); i++) {
+				double area = cv::contourArea(contours_right[i]);
+				if (area > maxArea_right) {
+					maxArea_right = area;
+					maxContour_right = contours_right[i];
+				}
 			}
 
-			if (cnt_right_eye.size() > 5) {
-				cv::RotatedRect ellipse = cv::fitEllipse(cnt_right_eye);
-				cv::Point2f center = ellipse.center;
-				// 重心に円を描画
-				cv::circle(right_eye_img, center, 5, cv::Scalar(0, 255, 255), -1);
-			}
+			// 最大の輪郭の中心を見つける
+			cv::Moments moments_left = cv::moments(maxContour_left, false);
+			cv::Moments moments_right = cv::moments(maxContour_right, false);
+
+			cv::Point center_left(moments_left.m10 / moments_left.m00, moments_left.m01 / moments_left.m00);
+			cv::Point center_right(moments_right.m10 / moments_right.m00, moments_right.m01 / moments_right.m00);
+
+			// 中心に青い円を描画する
+			cv::circle(left_eye_img, center_left, 10, cv::Scalar(255, 0, 0), -1);
+			cv::circle(right_eye_img, center_right, 10, cv::Scalar(255, 0, 0), -1);
 
 			cv::imshow("Left Eye", left_eye_img);
 			cv::imshow("Right Eye", right_eye_img);
+			cv::imshow("Left Eye Gray", left_eye_img_gray);
+			cv::imshow("Right Eye Gray", right_eye_img_gray);
 		}
 
 		// ランドマーク付きの画像を出力
