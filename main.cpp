@@ -33,13 +33,6 @@ int main() {
 	deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model;
 	cv::Mat temp;
 
-	// 目を検出するためのHaar Cascadeを読み込みます。
-	cv::CascadeClassifier eye_cascade;
-	if (!eye_cascade.load("haarcascade_eye.xml")) {
-		std::cout << "Error loading haarcascade_eye.xml" << std::endl;
-		return -1;
-	}
-
 	// メインループ
 	while (!win.is_closed()) {
 		// 1フレーム分の画像を受け取る箱
@@ -71,7 +64,6 @@ int main() {
 				dlib::draw_solid_circle(img, shapes[i].part(j), 2, dlib::rgb_pixel(0, 255, 0));
 			}
 
-
 			// 目の部分を切り取る
 			int margin = 5; // 追加するマージン（ピクセル単位）
 			cv::Rect left_eye(std::max(0, static_cast<int>(shapes[i].part(42).x())), std::max(0, static_cast<int>(shapes[i].part(43).y()) - margin), std::min(temp.cols, static_cast<int>(shapes[i].part(45).x())) - std::max(0, static_cast<int>(shapes[i].part(42).x())), std::min(temp.rows, static_cast<int>(shapes[i].part(47).y()) + margin) - std::max(0, static_cast<int>(shapes[i].part(43).y()) - margin));
@@ -95,8 +87,6 @@ int main() {
 			// 平滑化
 			cv::GaussianBlur(left_eye_img, left_eye_img, cv::Size(7, 7), 0);
 			cv::GaussianBlur(right_eye_img, right_eye_img, cv::Size(7, 7), 0);
-
-
 
 			// 二値化
 			uint32_t thresholdValue = 8; // しきい値(小さくするほどより濃い黒のみを検出する)
