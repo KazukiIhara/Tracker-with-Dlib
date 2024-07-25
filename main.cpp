@@ -88,21 +88,21 @@ int main() {
 			cv::GaussianBlur(left_eye_img, left_eye_img, cv::Size(7, 7), 0);
 			cv::GaussianBlur(right_eye_img, right_eye_img, cv::Size(7, 7), 0);
 
+			// グレースケールに変換
+			cv::Mat left_eye_img_gray, right_eye_img_gray;
+			cv::cvtColor(left_eye_img, left_eye_img_gray, cv::COLOR_BGR2GRAY);
+			cv::cvtColor(right_eye_img, right_eye_img_gray, cv::COLOR_BGR2GRAY);
+
 			// 二値化
 			uint32_t thresholdValue = 8; // しきい値(小さくするほどより濃い黒のみを検出する)
 			cv::Mat left_eye_img_binary, right_eye_img_binary;
-			cv::threshold(left_eye_img, left_eye_img_binary, thresholdValue, 255, cv::THRESH_BINARY_INV);
-			cv::threshold(right_eye_img, right_eye_img_binary, thresholdValue, 255, cv::THRESH_BINARY_INV);
-
-			// グレースケールに変換
-			cv::Mat left_eye_img_gray, right_eye_img_gray;
-			cv::cvtColor(left_eye_img_binary, left_eye_img_gray, cv::COLOR_BGR2GRAY);
-			cv::cvtColor(right_eye_img_binary, right_eye_img_gray, cv::COLOR_BGR2GRAY);
+			cv::threshold(left_eye_img_gray, left_eye_img_binary, thresholdValue, 255, cv::THRESH_BINARY_INV);
+			cv::threshold(right_eye_img_gray, right_eye_img_binary, thresholdValue, 255, cv::THRESH_BINARY_INV);
 
 			// 輪郭の抽出
 			std::vector<std::vector<cv::Point>> contours_left, contours_right;
-			cv::findContours(left_eye_img_gray, contours_left, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-			cv::findContours(right_eye_img_gray, contours_right, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+			cv::findContours(left_eye_img_binary, contours_left, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+			cv::findContours(right_eye_img_binary, contours_right, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
 			// 最大の輪郭を見つける
 			double maxArea_left = 0, maxArea_right = 0;
@@ -137,8 +137,8 @@ int main() {
 
 			cv::imshow("Left Eye", left_eye_img);
 			cv::imshow("Right Eye", right_eye_img);
-			cv::imshow("Left Eye Gray", left_eye_img_gray);
-			cv::imshow("Right Eye Gray", right_eye_img_gray);
+			cv::imshow("Left Eye Gray", left_eye_img_binary);
+			cv::imshow("Right Eye Gray", right_eye_img_binary);
 		}
 
 		// ランドマーク付きの画像を出力
